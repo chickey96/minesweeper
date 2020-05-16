@@ -4,6 +4,10 @@ class Minesweeper
     @data_hash = generateDataHash()
     @game_over = false
     @uncovered = 0
+    @labels_hash = {'A'=> 0, 'B'=> 1, 'C'=> 2}
+    @labels = @labels_hash.keys
+    @invalid_msg = "\nINVALID INPUT!!!"
+    @try_again = "Try Again!\n"
   end
 
   def playGame()
@@ -18,6 +22,14 @@ class Minesweeper
     printBoard()
     x, y = askPlayerForTurn()
 
+    repeated_spot = spotAlreadySelected?(x, y)
+
+    while (repeated_spot)
+      printBoard()
+      x, y = askPlayerForTurn()
+      repeated_spot = spotAlreadySelected?(x, y)
+    end
+
     @board[x][y] = @data_hash[[x,y]] || 0
     @uncovered += 1 if (@board[x][y] != -1)
 
@@ -30,48 +42,60 @@ class Minesweeper
   end
 
   def printBoard()
-    puts "\n  0 1 2 "
-    @board.each_with_index { |r, i| puts i.to_s + " " + r.join(" ") }
+    puts "\n  #{@labels.join(" ")}"
+    @board.each_with_index { |row, i| puts @labels[i].to_s + " " + row.join(" ") }
+    print "\n"
   end
 
   def askPlayerForTurn()
-    x, y = promptTurn()
-    validity_status = inputValidityCheck(x, y)
-
-    # continue prompting until player gives valid input
-    until (validity_status == "true")
-      puts validity_status
-      x, y = promptTurn()
-      validity_status = inputValidityCheck(x, y)
-    end
-
-    [x.to_i, y.to_i]
-  end
-
-  def promptTurn()
-    print "\nChoose a square! \nRow number (0-2): "
-    x = gets.chomp
-    print "Column number (0-2):"
-    y = gets.chomp
-
+    print "Choose a square!\n"
+    x = askPlayerFor("Row")
+    y = askPlayerFor("Column")
     [x, y]
   end
 
-  # output specific messages to give player feedback on invalid input
-  def inputValidityCheck(x, y)
-    if blankOrNonDigit?(x) || blankOrNonDigit?(y) || !isValid?(x.to_i, y.to_i)
-      return "\nValid input is a number 0-2.\n(See the top row and leftmost column for reference)"
-    elsif @board[x.to_i][y.to_i] != "X"
-      return "\nThat space has already been selected. Choose again."
+  def askPlayerFor(type)
+    response = promptTurn(type)
+    response_num = @labels_hash[response.upcase]
+    validity_status = isValidInput?(response_num)
+
+    # continue prompting until player gives valid input
+    until (validity_status)
+      printBoard()
+      response = promptTurn(type).upcase
+      response_num = @labels_hash[response]
+      validity_status = isValidInput?(response_num)
     end
 
-    "true"
+    response_num
   end
 
-  # screen for non_digit chars and empty strings
-  def blankOrNonDigit?(n)
-    return true if n.length < 1 || (n.to_i == 0 && n != "0")
+  def promptTurn(type)
+    print "#{type}: "
+    gets.chomp
+  end
+
+  # output specific messages to give player feedback on invalid input
+  def isValidInput?(input_num)
+    return true if isValid?(input_num)
+
+    msg = "Valid input is a letter #{@labels[0]}-#{@labels[@labels.length-1]}."
+    printInvalidSelectionMessage(msg)
+
     false
+  end
+
+  def spotAlreadySelected?(x, y)
+    return false if @board[x][y] == "X"
+
+    printInvalidSelectionMessage("That space has already been selected.")
+
+    true
+  end
+
+  def printInvalidSelectionMessage(custom_msg)
+    puts (@invalid_msg + custom_msg)
+    puts @try_again
   end
 
   # game setup methods
@@ -110,14 +134,16 @@ class Minesweeper
       pos_x += x
       pos_y += y
 
-      contacts[[pos_x, pos_y]] = 1 if isValid?(pos_x, pos_y)
+      if isValid?(pos_x) && isValid?(pos_y)
+        contacts[[pos_x, pos_y]] = 1
+      end
     end
 
     contacts
   end
 
-  def isValid?(x, y)
-    return false if (x > 2 || x < 0 || y > 2 || y < 0)
+  def isValid?(n)
+    return false if (!n || n > 2 || n < 0)
     true
   end
 end
