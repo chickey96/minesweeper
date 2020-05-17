@@ -1,4 +1,5 @@
 require './rules_and_setup.rb'
+require 'colorize'
 
 class Board
   attr_reader :exploded, :rows, :cols
@@ -24,29 +25,14 @@ class Board
     type == 'Row' ? @row_labels[-1].to_s : @col_labels[-1].to_s
   end
 
+  # translate user input from alphabetic to numeric, corresponding to grid coordinates
   def getIndexFromLabel(input, type)
     type == 'Row' ? @row_labels_hash[input.upcase] : @col_labels_hash[input.upcase]
   end
 
-  def printBoard()
-    puts "\n  #{@col_labels.join(" ")}"
-    @grid.each_with_index { |row, i| puts @row_labels[i].to_s + " " + row.join(" ") }
-    print "\n"
-  end
-
-  def printExposedBoard()
-    puts "\n  #{@col_labels.join(" ")}"
-    @grid.each_with_index do |row, r|
-      puts @row_labels[r].to_s + " " + row.map.with_index{|el, c| @data_hash[[r,c]] || 0}.join(" ")
-    end
-    print "\n"
-  end
-
-  def spotAlreadySelected?(x, y)
+  def spotAlreadyUncovered?(x, y)
     return false if @grid[x][y] == "X"
-
     @rules_and_setup.printInvalidSelectionMessage("That space has already been selected.")
-
     true
   end
 
@@ -54,21 +40,74 @@ class Board
     @rules_and_setup.isValidInput?(input, type)
   end
 
-  def hasBombAt?(x, y)
-    @grid[x][y] == "B"
-  end
-
-  def filled?()
-    @spots_to_uncover == 0
+  def boardFilledOrExploded?()
+    @exploded || @spots_to_uncover == 0
   end
 
   def uncoverSpot(x, y)
-    @grid[x][y] = @data_hash[[x,y]] || 0
-
-    hasBombAt?(x, y) ? @exploded = true : @spots_to_uncover -= 1
+    square_val = @data_hash[[x,y]] || 0
+    uncoverAllZeroes(x, y) if square_val == 0
+    fillInSquare(x, y, square_val)
   end
 
-  def boardFilledOrExploded?()
-    @exploded || filled?()
+  # recursively find and uncover any connected zeroes stopping after exposing a non_zero boundary
+  def uncoverAllZeroes(row, col, visited={})
+    # skip visited and previously uncovered squares
+    return false if (@grid[row][col] != 'X' || visited[[row, col]])
+
+    visited[[row, col]] = true
+    square_val = @data_hash[[row,col]] || 0
+
+    # stop after uncovering earliest border of non_zero squares
+    if (square_val != 0)
+      fillInSquare(row, col, square_val)
+      return false
+    end
+
+    # search coordinates in every possible direction (up/down/left/right and their diagonals)
+    surroundings = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+
+    surroundings.each do |r, c|
+      r += row
+      c += col
+
+      # skip out of bounds or already visited squares
+      next if visited[[r, c]]
+      next unless (@rules_and_setup.isValid?(r, 'Row') && @rules_and_setup.isValid?(c, 'Col'))
+
+      hidden = uncoverAllZeroes(r, c, visited)
+      # fill in each square after searching for it's connections
+      fillInSquare(r, c) if hidden
+    end
+
+    return true
+  end
+
+  def fillInSquare(r, c, val=0)
+    @grid[r][c] = val
+    val == 'B' ? @exploded = true : @spots_to_uncover -= 1
+  end
+
+  def printBoardWithOptionalExposure(exposed=false)
+    col_labels = "\n   #{@col_labels.join("  ")} \n"
+    print (exposed ? col_labels.swap : col_labels)
+
+    @grid.each_with_index do |row, r|
+      print (exposed ? "#{@row_labels[r]} ".swap : "#{@row_labels[r]} ")
+
+      # show all hidden values in relief with unicode bombs on exposed view
+      if exposed
+        row.each_index do |c|
+          val = @data_hash[[r,c]] || 0
+          print (val == 'B' ? "\u{1F4A3} " : " #{val} ").swap
+        end
+      else # invert colors of uncovered squares to show them in relief
+        row.each { |el| print (el == 'X' ? " #{el} " : " #{el} ".swap) }
+      end
+
+      print "\n"
+    end
+
+    print "\n"
   end
 end

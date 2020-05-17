@@ -26,6 +26,7 @@ class RulesAndSetup
     false
   end
 
+  # create a nested array/grid of X's using given row/col dimensions
   def generateBoard()
     board = []
 
@@ -40,6 +41,7 @@ class RulesAndSetup
 
   # game setup methods
   def generateDataHash()
+    # use one less bomb than the sqrt of total number of squares
     n_bombs = Math.sqrt(@board.rows * @board.cols).to_i - 1
     existing_bombs = {}
     bomb = [rand(@board.rows), rand(@board.cols)]
@@ -48,6 +50,7 @@ class RulesAndSetup
 
     data_hash = adjacentData(bomb)
 
+    # don't need to round n_bombs for this loop to function
     while (bomb_count < n_bombs)
       # don't allow duplicate bomb coordinates
       while (existing_bombs[bomb])
@@ -58,6 +61,7 @@ class RulesAndSetup
       existing_bombs[bomb] = "B"
       bomb_count += 1
 
+      # get coordinates of all the spaces touching the bomb
       bomb_hash = adjacentData(bomb)
 
       # add the number of bombs each square is touching
@@ -76,14 +80,15 @@ class RulesAndSetup
     row, col = pos
     contacts = {}
 
-    positions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+    # check squares in all 8 possible directions, 4 standard and 4 diagonal
+    surroundings = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
 
-    positions.each do |r, c|
+    surroundings.each do |r, c|
       r += row
       c += col
 
-
-      if (r >= 0 && r < @board.rows && c >= 0 && c < @board.cols)
+      # valid squares increase their total bomb touching count by one
+      if (isValid?(r, 'Row') && isValid?(c, 'Col'))
         contacts[[r, c]] = 1
       end
     end
@@ -91,6 +96,7 @@ class RulesAndSetup
     contacts
   end
 
+  # used to determine when a player has won the game
   def calculateSpotsWithoutBombs()
     total_spots = (@board.rows * @board.cols)
     n_bombs = Math.sqrt(total_spots).to_i - 1
@@ -98,6 +104,7 @@ class RulesAndSetup
     (total_spots - n_bombs)
   end
 
+  # creating row/col labels by transferring grid indices to corresponding letters in the alphabet
   def generateLabelsHash(n)
     labels_hash = {}
     alpha = ('A'..'Z').to_a
