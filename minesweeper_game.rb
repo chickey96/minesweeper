@@ -1,8 +1,8 @@
 require './board.rb'
 
-class Minesweeper
-  def initialize()
-    @board = Board.new(3, 3)
+class MinesweeperGame
+  def initialize(r=3, c=3)
+    @board = Board.new(r, c)
     @game_over = false
   end
 

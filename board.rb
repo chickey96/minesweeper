@@ -3,9 +3,9 @@ require './rules_and_setup.rb'
 class Board
   attr_reader :exploded, :rows, :cols
 
-  def initialize(num_rows=3, num_cols=3)
-    @rows = num_rows
-    @cols = num_cols
+  def initialize(rows, cols)
+    @rows = rows
+    @cols = cols
 
     @rules_and_setup = RulesAndSetup.new(self)
     @grid = @rules_and_setup.generateBoard()
