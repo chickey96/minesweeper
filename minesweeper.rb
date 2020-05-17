@@ -2,10 +2,8 @@ require './board.rb'
 
 class Minesweeper
   def initialize()
-    @board = Board.new(self, 3, 3)
+    @board = Board.new(3, 3)
     @game_over = false
-    @invalid_msg = "\nINVALID INPUT!!!"
-    @try_again = "Try Again!\n"
   end
 
   def playGame()
@@ -31,7 +29,14 @@ class Minesweeper
   def finishGame()
     @board.printBoard()
 
-    puts (@board.exploded ? "\nKABOOOM! YOU LOST!" : "\nYOU WON!")
+    if (@board.exploded)
+      puts "\nKABOOOM! YOU LOST!"
+      @board.printExposedBoard()
+    else
+      @game_over = false
+      @board = Board.new(@board.rows+1, @board.cols+1)
+      playGame()
+    end
   end
 
   def askPlayerForTurn()
@@ -43,41 +48,21 @@ class Minesweeper
   end
 
   def askPlayerFor(type)
-    response = promptTurn(type).upcase
-    response_num = @board.getIndexFromLabel(response)
+    raw_response = promptTurn(type)
+    processed = @board.getIndexFromLabel(raw_response, type)
 
     # continue prompting until player gives valid input
-    until (isValidInput?(response_num, type))
+    until (@board.inputInBounds?(processed, type))
       @board.printBoard()
-      response = promptTurn(type).upcase
-      response_num = @board.getIndexFromLabel(response)
+      raw_response = promptTurn(type)
+      processed = @board.getIndexFromLabel(raw_response, type)
     end
 
-    response_num
+    processed
   end
 
   def promptTurn(type)
     print "#{type}: "
     gets.chomp
-  end
-
-  # output specific messages to give player feedback on invalid input
-  def isValidInput?(input_num, type)
-    return true if isValid?(input_num)
-
-    msg = "Valid input is a letter A-#{@board.labelOptionsFor(type)}."
-    printInvalidSelectionMessage(msg)
-
-    false
-  end
-
-  def printInvalidSelectionMessage(custom_msg)
-    puts (@invalid_msg + custom_msg)
-    puts @try_again
-  end
-
-  def isValid?(n)
-    return false if (!n || n > 2 || n < 0)
-    true
   end
 end

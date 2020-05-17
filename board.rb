@@ -1,99 +1,74 @@
-class Board
-  attr_reader :exploded
+require './rules_and_setup.rb'
 
-  def initialize(game, num_rows=3, num_cols=3)
-    @game = game
-    @grid = [['X','X','X'],['X','X','X'],['X','X','X']]
-    @uncovered_spots = 0
-    @labels_hash = {'A'=> 0, 'B'=> 1, 'C'=> 2}
-    @labels = @labels_hash.keys
-    @data_hash = generateDataHash()
+class Board
+  attr_reader :exploded, :rows, :cols
+
+  def initialize(num_rows=3, num_cols=3)
+    @rows = num_rows
+    @cols = num_cols
+
+    @rules_and_setup = RulesAndSetup.new(self)
+    @grid = @rules_and_setup.generateBoard()
+    @data_hash = @rules_and_setup.generateDataHash()
+    @spots_to_uncover = @rules_and_setup.calculateSpotsWithoutBombs()
+
+    @row_labels_hash = @rules_and_setup.generateLabelsHash(@rows)
+    @col_labels_hash = @rules_and_setup.generateLabelsHash(@cols)
+    @row_labels = @row_labels_hash.keys
+    @col_labels = @col_labels_hash.keys
+
     @exploded = false
   end
 
   def labelOptionsFor(type)
-    @labels[@labels.length-1].to_s
+    type == 'Row' ? @row_labels[-1].to_s : @col_labels[-1].to_s
   end
 
-  def getIndexFromLabel(input)
-    @labels_hash[input.upcase]
+  def getIndexFromLabel(input, type)
+    type == 'Row' ? @row_labels_hash[input.upcase] : @col_labels_hash[input.upcase]
   end
 
   def printBoard()
-    puts "\n  #{@labels.join(" ")}"
-    @grid.each_with_index { |row, i| puts @labels[i].to_s + " " + row.join(" ") }
+    puts "\n  #{@col_labels.join(" ")}"
+    @grid.each_with_index { |row, i| puts @row_labels[i].to_s + " " + row.join(" ") }
+    print "\n"
+  end
+
+  def printExposedBoard()
+    puts "\n  #{@col_labels.join(" ")}"
+    @grid.each_with_index do |row, r|
+      puts @row_labels[r].to_s + " " + row.map.with_index{|el, c| @data_hash[[r,c]] || 0}.join(" ")
+    end
     print "\n"
   end
 
   def spotAlreadySelected?(x, y)
     return false if @grid[x][y] == "X"
 
-    @game.printInvalidSelectionMessage("That space has already been selected.")
+    @rules_and_setup.printInvalidSelectionMessage("That space has already been selected.")
 
     true
   end
 
+  def inputInBounds?(input, type)
+    @rules_and_setup.isValidInput?(input, type)
+  end
+
   def hasBombAt?(x, y)
-    @grid[x][y] == -1
+    @grid[x][y] == "B"
   end
 
   def filled?()
-    @uncovered_spots == 7
+    @spots_to_uncover == 0
   end
 
   def uncoverSpot(x, y)
     @grid[x][y] = @data_hash[[x,y]] || 0
 
-    hasBombAt?(x, y) ? @exploded = true : @uncovered_spots += 1
+    hasBombAt?(x, y) ? @exploded = true : @spots_to_uncover -= 1
   end
 
   def boardFilledOrExploded?()
     @exploded || filled?()
   end
-
-   # game setup methods
-   def generateDataHash()
-    bomb_1 = [rand(3), rand(3)]
-    bomb_2 = [rand(3), rand(3)]
-
-    # don't allow duplicate bomb coordinates
-    while (bomb_2 == bomb_1)
-      bomb_2 = [rand(3), rand(3)]
-    end
-
-    hash = adjacentData(bomb_1)
-    hash_2 = adjacentData(bomb_2)
-
-    # add the number of bombs each square is touching
-    hash.merge!(hash_2) do |key, old_val, new_val|
-      (old_val + new_val)
-    end
-
-    # note the location of the bombs
-    hash[bomb_2] = -1
-    hash[bomb_1] = -1
-
-    hash
-  end
-
-  # record in-bounds squares touching the given bomb
-  def adjacentData(pos)
-    x,y = pos
-    contacts = {}
-
-    positions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
-
-    positions.each do |pos_x, pos_y|
-      pos_x += x
-      pos_y += y
-
-      if @game.isValid?(pos_x) && @game.isValid?(pos_y)
-        contacts[[pos_x, pos_y]] = 1
-      end
-    end
-
-    contacts
-  end
-
-
 end
